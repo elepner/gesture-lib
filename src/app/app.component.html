@@ -1,0 +1,14 @@
+<div style="height: 100svh; display: flex; flex-direction: column; position: relative">
+  <div style="flex-grow: 1; background-color: cyan" #targetEl>
+    @for (item of toches$ | async; track item.id) {
+      <div
+         [style.background-color]="item.color" 
+         [style.left.px]="item.position[0]" 
+         [style.top.px]="item.position[1]" 
+         style="width: 30px; height: 30px; position: absolute; border-radius: 50%; transform: translate(-50%, -50%);">
+    </div>
+    }
+  </div>
+
+  <div>{{touchState$ | async | json}}</div>
+</div>

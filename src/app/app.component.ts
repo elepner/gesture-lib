@@ -1,4 +1,4 @@
-import { Component, ElementRef, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { toObservable } from '@angular/core/rxjs-interop';
 import { filter, map, merge, switchMap } from 'rxjs';
@@ -8,13 +8,9 @@ import { fromHtmlElementEvent, toTouchObservable, toTouchState, TouchEventData, 
   selector: 'app-root',
   standalone: true,
   imports: [CommonModule],
-  template: `
-    <div style="height: 100svh; display: flex; flex-direction: column;">
-      <div style="flex-grow: 1; background-color: cyan" #targetEl></div>
-      <div>{{touchState$ | async | json}}</div>
-    </div>
-  `,
+  templateUrl: './app.component.html',
   styles: [],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AppComponent {
   title = 'touch-lib';
@@ -25,23 +21,35 @@ export class AppComponent {
     switchMap((ref) => toTouchState(ref.nativeElement))
   )
 
-  constructor() {
-    // toObservable(this.targetEl).pipe(
-    //   filter(isNotNull),
-    //   switchMap((el) => {
-    //     const obs$ = touchEvents.map((evtType) => toTouchObservable(el.nativeElement, evtType).pipe((
-    //       map((event) => {
-    //         return [evtType, event] satisfies [TouchEventType, TouchEventData]
-    //       }))));
-    //     return merge(...obs$)
-    //   })
-    // ).subscribe(obj => {
-    //   console.log('touch stuff', obj);
-    // });
+  readonly colors = ['red', 'green', 'blue'] as const;
 
-    this.touchState$.subscribe(obj => {
-      console.log('Touch state', obj);
+  toches$ = this.touchState$.pipe(map((state) => {
+    return Object.entries(state).map(([id, state], index) => {
+      return {
+        id,
+        color: this.colors[index] ?? 'pink',
+        position: state.position
+      }
+    })
+  }))
+
+  constructor() {
+    toObservable(this.targetEl).pipe(
+      filter(isNotNull),
+      switchMap((el) => {
+        const obs$ = touchEvents.map((evtType) => toTouchObservable(el.nativeElement, evtType).pipe((
+          map((event) => {
+            return [evtType, event] satisfies [TouchEventType, TouchEventData]
+          }))));
+        return merge(...obs$)
+      })
+    ).subscribe(obj => {
+      console.log('touch stuff', obj);
     });
+
+    // this.touchState$.subscribe(obj => {
+    //   console.log('Touch state', obj);
+    // });
 
     toObservable(this.targetEl).pipe(
       filter(isNotNull),

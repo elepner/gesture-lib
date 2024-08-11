@@ -77,7 +77,7 @@ export function toTouchState(target: HTMLElement) {
   return merge(...eventStreams).pipe(
     scan((acc, curr) => {
       return reducers[curr.eventType](curr.data, acc);
-    }, {} satisfies TouchState)
+    }, {} as TouchState)
   )
 }
 
