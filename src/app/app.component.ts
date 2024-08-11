@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component, ElementRef, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { toObservable } from '@angular/core/rxjs-interop';
-import { filter, map, merge, switchMap, tap } from 'rxjs';
+import { filter, map, materialize, merge, share, switchMap, tap } from 'rxjs';
 import { isNotNull } from './utils';
-import { fromHtmlElementEvent, tapScreen, toTouchObservable, toTouchState } from './gestures';
+import { fromHtmlElementEvent, getCoordinates, tapScreen, toTouchObservable, toTouchState, touchMove, waitForPress } from './gestures';
 import { TouchEventData, touchEvents, TouchEventType } from './models';
 @Component({
   selector: 'app-root',
@@ -19,7 +19,8 @@ export class AppComponent {
 
   touchState$ = toObservable(this.targetEl).pipe(
     filter(isNotNull),
-    switchMap((ref) => toTouchState(ref.nativeElement))
+    switchMap((ref) => toTouchState(ref.nativeElement)),
+    share()
   )
 
   readonly colors = ['red', 'green', 'blue'] as const;
@@ -59,6 +60,29 @@ export class AppComponent {
       }))
     ))).subscribe(obj => {
       console.log(`Detected tap with ${obj.count} fingers`, obj.event);
+    });
+
+    merge(...[1, 2, 3].map(count => touchMove(this.touchState$, count).pipe(
+      switchMap(x => x.pipe(
+        materialize(),
+        map((notification) => {
+          if (notification.kind === 'N') {
+            return [`Moving with ${count} fingers`, getCoordinates(notification.value)];
+          } else {
+            return [`Finished moving ${count} fingers`];
+          }
+        })
+      ))
+
+    ))).subscribe(obj => {
+      console.log('Waiting for move', obj)
+      // console.log(`Detected tap with ${obj.count} fingers`, obj.event);
+    });
+
+
+
+    waitForPress(this.touchState$.pipe(map(x => x.touches)), 2).pipe(switchMap(x => x)).subscribe(obj => {
+      console.log('Wait for touch', obj);
     });
 
 
