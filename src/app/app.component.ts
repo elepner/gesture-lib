@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { toObservable } from '@angular/core/rxjs-interop';
 import { filter, map, materialize, merge, share, switchMap, tap } from 'rxjs';
 import { isNotNull } from './utils';
-import { fromHtmlElementEvent, getCoordinates, tapScreen, toTouchObservable, toTouchState, touchMove, waitForPress } from './gestures';
+import { fromHtmlElementEvent, getCoordinates, swipe, tapScreen, toTouchObservable, toTouchState, touchMove, waitForPress } from './gestures';
 import { TouchEventData, touchEvents, TouchEventType } from './models';
 @Component({
   selector: 'app-root',
@@ -52,39 +52,41 @@ export class AppComponent {
     // this.touchState$.subscribe(obj => {
     //   console.log('Touch state', obj);
     // });
+    /* 
+        merge(...[1, 2, 3].map(count => tapScreen(this.touchState$, count).pipe(
+          map((el) => ({
+            count,
+            event: el
+          }))
+        ))).subscribe(obj => {
+          console.log(`Detected tap with ${obj.count} fingers`, obj.event);
+        });
+     */
+    /*  merge(...[1, 2, 3].map(count => touchMove(this.touchState$, count).pipe(
+       switchMap(x => x.move$.pipe(
+         materialize(),
+         map((notification) => {
+           if (notification.kind === 'N') {
+             return [`Moving with ${count} fingers`, getCoordinates(notification.value)];
+           } else {
+             return [`Finished moving ${count} fingers`];
+           }
+         })
+       ))
+ 
+     ))).subscribe(obj => {
+       console.log('Waiting for move', obj)
+       // console.log(`Detected tap with ${obj.count} fingers`, obj.event);
+     });
+  */
 
-    merge(...[1, 2, 3].map(count => tapScreen(this.touchState$, count).pipe(
-      map((el) => ({
-        count,
-        event: el
-      }))
-    ))).subscribe(obj => {
-      console.log(`Detected tap with ${obj.count} fingers`, obj.event);
-    });
-
-    merge(...[1, 2, 3].map(count => touchMove(this.touchState$, count).pipe(
-      switchMap(x => x.pipe(
-        materialize(),
-        map((notification) => {
-          if (notification.kind === 'N') {
-            return [`Moving with ${count} fingers`, getCoordinates(notification.value)];
-          } else {
-            return [`Finished moving ${count} fingers`];
-          }
-        })
-      ))
-
-    ))).subscribe(obj => {
-      console.log('Waiting for move', obj)
-      // console.log(`Detected tap with ${obj.count} fingers`, obj.event);
-    });
 
 
-
-    waitForPress(this.touchState$.pipe(map(x => x.touches)), 2).pipe(switchMap(x => x)).subscribe(obj => {
-      console.log('Wait for touch', obj);
-    });
-
+    merge(...[1, 2, 3].map(
+      c => swipe(this.touchState$, c).pipe(switchMap((val) => (val))))
+    ).subscribe(obj => {
+      console.log('Swipe', obj);
+    });;
 
     toObservable(this.targetEl).pipe(
       filter(isNotNull),

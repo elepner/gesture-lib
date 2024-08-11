@@ -1,7 +1,7 @@
-import { concatMap, exhaustMap, filter, finalize, first, fromEvent, map, merge, Observable, pairwise, scan, share, skipWhile, startWith, switchMap, take, takeUntil, takeWhile, tap, timer } from 'rxjs';
-import { magSq, sub, Vector } from './math';
+import { exhaustMap, filter, fromEvent, map, merge, Observable, pairwise, scan, skipWhile, startWith, switchMap, take, takeLast, takeUntil, takeWhile, timer } from 'rxjs';
+import { center, magSq, sub, Vector } from './math';
 import { TouchEventType, TouchEventData, touchEvents, TouchState, TouchRecord } from './models';
-import { isNotNull } from './utils';
+import { arrMap, isNotNull } from './utils';
 
 export function toTouchObservable<T extends TouchEventType>(target: HTMLElement, evtType: T): Observable<TouchEventData> {
   return fromHtmlElementEvent(target, evtType).pipe(
@@ -107,13 +107,39 @@ export function touchMove(touchState$: Observable<TouchState>, fingerCount: numb
   return waitForPress(touchState$.pipe(map(x => x.touches)), fingerCount).pipe(
     switchMap(x => x),
     map(start => {
-      return touchState$.pipe(
-        map(x => x.touches),
-        takeWhile(state => touchCount(state) === touchCount(start.gestureStart)),
-        skipWhile(current => sameFingersWithinTolerance(current, start.gestureStart, TAP_TOLERANCE_PX))
-      )
+      return {
+        startState: start,
+        move$: touchState$.pipe(
+          map(x => x.touches),
+          takeWhile(state => touchCount(state) === touchCount(start.gestureStart)),
+          skipWhile(current => sameFingersWithinTolerance(current, start.gestureStart, TAP_TOLERANCE_PX))
+        )
+      }
     })
   );
+}
+
+const SWIPE_MIN_TRAVEL_DISTANCE_PX = 200;
+
+export function swipe(touchState$: Observable<TouchState>, fingerCount: number) {
+
+  return touchMove(touchState$, fingerCount).pipe(
+    map((start) => {
+      return start.move$.pipe(
+        takeLast(1),
+        takeUntil(timer(500)),
+        filter((lastEvent) => {
+          return magSq(
+            sub(
+              ...arrMap(
+                [start.startState.gestureStart, lastEvent], x => center(Object.values(x).map(y => y.position))
+              )
+            )
+          ) > SWIPE_MIN_TRAVEL_DISTANCE_PX * SWIPE_MIN_TRAVEL_DISTANCE_PX;
+        })
+      )
+    })
+  )
 }
 
 export function waitForPress(touchState$: Observable<TouchRecord>, touchNumber: number) {
