@@ -24,7 +24,7 @@ export class AppComponent {
   readonly colors = ['red', 'green', 'blue'] as const;
 
   toches$ = this.touchState$.pipe(map((state) => {
-    return Object.entries(state).map(([id, state], index) => {
+    return Object.entries(state.touches).map(([id, state], index) => {
       return {
         id,
         color: this.colors[index] ?? 'pink',

@@ -1,4 +1,4 @@
-import { fromEvent, map, merge, Observable, scan, timeInterval, timestamp } from 'rxjs';
+import { filter, fromEvent, map, merge, Observable, scan, timeInterval, timestamp } from 'rxjs';
 import { Vector } from './math';
 
 export interface TouchData {
@@ -9,18 +9,19 @@ export interface TouchData {
 
 export type TouchEventData = {
   currentTouches: TouchData[];
-  changedTouches: TouchData[]
+  changedTouches: TouchData[];
+  timestamp: number;
 };
 
 export const touchEvents = ['touchstart', 'touchmove', 'touchend', 'touchcancel'] as const;
 export type TouchEventType = typeof touchEvents[number];
 
-const TAP_OFFSET_TOLERANCE_PX = 10;
 
 export function toTouchObservable<T extends TouchEventType>(target: HTMLElement, evtType: T): Observable<TouchEventData> {
   return fromHtmlElementEvent(target, evtType).pipe(
     map((evt) => {
       return {
+        timestamp: evt.timeStamp,
         changedTouches: Array.from(evt.changedTouches).map((touch) => ({
           touchId: touch.identifier,
           position: getPosition(touch),
@@ -36,10 +37,16 @@ export function toTouchObservable<T extends TouchEventType>(target: HTMLElement,
   );
 }
 
-type TouchState = Record<number, { position: Vector, timestamp: number }>
+type TouchRecord = Record<number, { position: Vector, timestamp: number }>
+interface TouchState {
+  lastUpdate: number;
+  touches: TouchRecord;
+  lastEventType: TouchEventType;
+}
+
 
 export function toTouchState(target: HTMLElement) {
-  const reducers: { [p in TouchEventType]: (evt: TouchEventData, prev: TouchState) => TouchState } = {
+  const reducers: { [p in TouchEventType]: (evt: TouchEventData, prev: TouchRecord) => TouchRecord } = {
 
     touchstart: (evt, prev) => {
       return {
@@ -76,13 +83,22 @@ export function toTouchState(target: HTMLElement) {
 
   return merge(...eventStreams).pipe(
     scan((acc, curr) => {
-      return reducers[curr.eventType](curr.data, acc);
-    }, {} as TouchState)
+      return {
+        lastUpdate: curr.data.timestamp,
+        touches: reducers[curr.eventType](curr.data, acc.touches),
+        lastEventType: curr.eventType
+      }
+    }, {
+      lastUpdate: -1,
+      touches: {}
+    } as TouchState)
   )
 }
 
-export function tap(target: HTMLElement) {
-  toTouchObservable(target, 'touchstart').pipe(
+const TAP_TOLERANCE_PX = 10;
+const TAP_TIME_MS = 500;
+export function tap(touchState$: Observable<TouchState>, fingerCount: number) {
+  touchState$.pipe(
 
   )
 }
