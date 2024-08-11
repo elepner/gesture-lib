@@ -1,21 +1,6 @@
-import { filter, fromEvent, map, merge, Observable, scan, timeInterval, timestamp } from 'rxjs';
-import { Vector } from './math';
-
-export interface TouchData {
-  touchId: number;
-  position: Vector;
-  timestamp: number;
-}
-
-export type TouchEventData = {
-  currentTouches: TouchData[];
-  changedTouches: TouchData[];
-  timestamp: number;
-};
-
-export const touchEvents = ['touchstart', 'touchmove', 'touchend', 'touchcancel'] as const;
-export type TouchEventType = typeof touchEvents[number];
-
+import { concatMap, exhaustMap, filter, finalize, first, fromEvent, map, merge, Observable, pairwise, scan, share, startWith, take, takeUntil, takeWhile, tap, timer } from 'rxjs';
+import { magSq, sub, Vector } from './math';
+import { TouchEventType, TouchEventData, touchEvents, TouchState, TouchRecord } from './models';
 
 export function toTouchObservable<T extends TouchEventType>(target: HTMLElement, evtType: T): Observable<TouchEventData> {
   return fromHtmlElementEvent(target, evtType).pipe(
@@ -37,13 +22,11 @@ export function toTouchObservable<T extends TouchEventType>(target: HTMLElement,
   );
 }
 
-type TouchRecord = Record<number, { position: Vector, timestamp: number }>
-interface TouchState {
-  lastUpdate: number;
-  touches: TouchRecord;
-  lastEventType: TouchEventType;
+const defaultState: TouchState = {
+  lastUpdate: -1,
+  lastEventType: 'touchend',
+  touches: {},
 }
-
 
 export function toTouchState(target: HTMLElement) {
   const reducers: { [p in TouchEventType]: (evt: TouchEventData, prev: TouchRecord) => TouchRecord } = {
@@ -95,17 +78,95 @@ export function toTouchState(target: HTMLElement) {
   )
 }
 
-const TAP_TOLERANCE_PX = 10;
-const TAP_TIME_MS = 500;
-export function tap(touchState$: Observable<TouchState>, fingerCount: number) {
-  touchState$.pipe(
-
+const TAP_TOLERANCE_PX = 130;
+const TAP_TIME_MS = 750;
+export function tapScreen(touchState$: Observable<TouchState>, fingerCount: number) {
+  touchState$ = touchState$.pipe(share());
+  return touchState$.pipe(
+    filter(x => x.lastEventType === 'touchstart' && touchCount(x.touches) <= fingerCount),
+    exhaustMap((start) => {
+      return touchState$.pipe(
+        map(x => x.touches),
+        startWith(start.touches),
+        scan((acc, current) => {
+          if (acc == null) {
+            return null;
+          }
+          const newBase = collectTouches(acc.base, current);
+          if (newBase == null) return null;
+          return {
+            base: newBase,
+            current: current
+          }
+        }, {
+          base: start.touches,
+          current: start.touches
+        } as {
+          base: TouchRecord,
+          current: TouchRecord
+        } | null),
+        takeWhile(x => {
+          return x != null && sameFingersWithinTolerance(x.base, x.current, TAP_TOLERANCE_PX);
+        }),
+        filter(x => x != null && touchCount(x!.base) === fingerCount),
+        take(1),
+        exhaustMap((necessaryAmountOfTouchesReachedState) => {
+          return touchState$.pipe(
+            map(x => x.touches),
+            startWith(necessaryAmountOfTouchesReachedState!.base!),
+            pairwise(),
+            takeWhile(([prev, current]) => touchReleasedOrStayedSame(prev, current) && sameFingersWithinTolerance(current, necessaryAmountOfTouchesReachedState!.base, TAP_TOLERANCE_PX)),
+            filter(([prev, current]) => touchCount(current) === 0),
+            take(1),
+            map(() => necessaryAmountOfTouchesReachedState!.base)
+          )
+        }),
+        takeUntil(timer(TAP_TIME_MS))
+      )
+    })
   )
+}
+
+function collectTouches(prev: TouchRecord, current: TouchRecord) {
+  if (Object.keys(prev).some((touchId => !current[touchId]))) {
+    return null;
+  }
+  return { ...current, ...prev };
+}
+
+function touchReleasedOrStayedSame(prev: TouchRecord, current: TouchRecord) {
+  return touchCount(prev) >= touchCount(current);
+}
+
+function sameFingersWithinTolerance(prev: TouchRecord, current: TouchRecord, tolerance: number) {
+  const toleranceSq = tolerance * tolerance;
+  return Object.keys(prev).every((key) => {
+    const curr = current[key];
+    if (!curr) {
+      return false;
+    }
+    return magSq(sub(prev[key].position, curr.position)) < toleranceSq;
+  })
 }
 
 function getPosition(touch: Touch): Vector {
   return [touch.clientX, touch.clientY];
 }
+
+function touchCount(touches: TouchRecord) {
+  return Object.keys(touches).length;
+}
+
+function log<T>(exec: () => T) {
+  const result = exec();
+  console.log('Result: ', result);
+  return result;
+}
+
+function firstTouch(touches: TouchRecord) {
+  return touches[Object.keys(touches)[0]];
+}
+
 
 export function fromHtmlElementEvent<K extends keyof HTMLElementEventMap>(target: HTMLElement, type: K): Observable<HTMLElementEventMap[K]> {
   return fromEvent(target, type) as any;

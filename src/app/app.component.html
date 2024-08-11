@@ -1,5 +1,5 @@
 <div style="height: 100svh; display: flex; flex-direction: column; position: relative">
-  <div style="flex-grow: 1; background-color: cyan" #targetEl>
+  <div style="flex-grow: 1; background-color: cyan" #targetEl (contextmenu)="disableContextMenu($event)">
     @for (item of toches$ | async; track item.id) {
       <div
          [style.background-color]="item.color" 

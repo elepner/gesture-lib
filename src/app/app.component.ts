@@ -1,9 +1,10 @@
 import { ChangeDetectionStrategy, Component, ElementRef, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { toObservable } from '@angular/core/rxjs-interop';
-import { filter, map, merge, switchMap } from 'rxjs';
+import { filter, map, merge, switchMap, tap } from 'rxjs';
 import { isNotNull } from './utils';
-import { fromHtmlElementEvent, toTouchObservable, toTouchState, TouchEventData, touchEvents, TouchEventType } from './gestures';
+import { fromHtmlElementEvent, tapScreen, toTouchObservable, toTouchState } from './gestures';
+import { TouchEventData, touchEvents, TouchEventType } from './models';
 @Component({
   selector: 'app-root',
   standalone: true,
@@ -34,22 +35,32 @@ export class AppComponent {
   }))
 
   constructor() {
-    toObservable(this.targetEl).pipe(
-      filter(isNotNull),
-      switchMap((el) => {
-        const obs$ = touchEvents.map((evtType) => toTouchObservable(el.nativeElement, evtType).pipe((
-          map((event) => {
-            return [evtType, event] satisfies [TouchEventType, TouchEventData]
-          }))));
-        return merge(...obs$)
-      })
-    ).subscribe(obj => {
-      console.log('touch stuff', obj);
-    });
+    // toObservable(this.targetEl).pipe(
+    //   filter(isNotNull),
+    //   switchMap((el) => {
+    //     const obs$ = touchEvents.map((evtType) => toTouchObservable(el.nativeElement, evtType).pipe((
+    //       map((event) => {
+    //         return [evtType, event] satisfies [TouchEventType, TouchEventData]
+    //       }))));
+    //     return merge(...obs$)
+    //   })
+    // ).subscribe(obj => {
+    //   console.log('touch stuff', obj);
+    // });
 
     // this.touchState$.subscribe(obj => {
     //   console.log('Touch state', obj);
     // });
+
+    merge(...[1, 2, 3].map(count => tapScreen(this.touchState$, count).pipe(
+      map((el) => ({
+        count,
+        event: el
+      }))
+    ))).subscribe(obj => {
+      console.log(`Detected tap with ${obj.count} fingers`, obj.event);
+    });
+
 
     toObservable(this.targetEl).pipe(
       filter(isNotNull),
@@ -57,5 +68,9 @@ export class AppComponent {
     ).subscribe(evt => {
       evt.preventDefault();
     });
+  }
+
+  disableContextMenu(event: Event) {
+    event.preventDefault();
   }
 }
