@@ -1,4 +1,4 @@
-import { bufferTime, exhaustMap, filter, fromEvent, map, merge, Observable, pairwise, scan, skipWhile, startWith, switchMap, take, takeLast, takeUntil, takeWhile, timer } from 'rxjs';
+import { bufferTime, delay, exhaustMap, filter, fromEvent, interval, map, merge, Observable, of, pairwise, race, raceWith, scan, skipWhile, startWith, switchMap, take, takeLast, takeUntil, takeWhile, tap, timer } from 'rxjs';
 import { center, magSq, sub, Vector } from './math';
 import { TouchEventType, TouchEventData, touchEvents, TouchState, TouchRecord } from './models';
 import { arrMap, isNotNull } from './utils';
@@ -81,7 +81,8 @@ export function toTouchState(target: HTMLElement) {
 
 const TAP_TOLERANCE_PX = 15;
 const TAP_TIME_MS = 750;
-export function tapScreen(touchState$: Observable<TouchState>, fingerCount: number) {
+
+function tapInternal(touchState$: Observable<TouchState>, fingerCount: number) {
   return waitForPress(touchState$.pipe(map(x => x.touches)), fingerCount).pipe(
     exhaustMap((screenPressed$) => {
       return screenPressed$.pipe(
@@ -99,6 +100,24 @@ export function tapScreen(touchState$: Observable<TouchState>, fingerCount: numb
         takeUntil(timer(TAP_TIME_MS))
       );
     })
+  );
+}
+
+export function tapScreen(touchState$: Observable<TouchState>, fingerCount: number) {
+  return tapInternal(touchState$, fingerCount).pipe(
+    exhaustMap((tapEvent) => {
+      return race(
+        [
+          of(tapEvent).pipe(delay(DOUBLE_TAP_TIME_MS)),
+          touchState$.pipe(
+            switchMap(x => interval(10)),
+            take(2),
+            map(() => null),
+          )
+        ]
+      )
+    }),
+    filter(isNotNull)
   );
 }
 
@@ -153,9 +172,9 @@ export function pinch(touchState$: Observable<TouchState>) {
 }
 const DOUBLE_TAP_TIME_MS = 400;
 export function doubleTap(touchState$: Observable<TouchState>, fingerCount: number) {
-  return tapScreen(touchState$, fingerCount).pipe(
+  return tapInternal(touchState$, fingerCount).pipe(
     exhaustMap((start) => {
-      return tapScreen(touchState$, fingerCount).pipe(
+      return tapInternal(touchState$, fingerCount).pipe(
         bufferTime(DOUBLE_TAP_TIME_MS),
         take(1),
         filter(x => x.length === 1),
