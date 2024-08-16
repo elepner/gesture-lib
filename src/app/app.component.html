@@ -1,6 +1,6 @@
 <div style="height: 100svh; display: flex; flex-direction: column; position: relative">
   <div style="flex-grow: 1; background-color: cyan" #targetEl (contextmenu)="disableContextMenu($event)">
-    @for (item of toches$ | async; track item.id) {
+    @for (item of touches$ | async; track item.id) {
       <div
         class="touch-indicator point rounded"
         [style.background-color]="item.color" 
@@ -8,13 +8,23 @@
         [style.top.px]="item.position[1]">
     </div>
     }
-    @if(swipe$ | async; as swipe) {
+    @if(gestures$ | async; as swipe) {
       <div
       class="touch-indicator"
       [style.left.px]="swipe.center[0]"
       [style.top.px]="swipe.center[1]"
       style="background-color: blueviolet; position: absolute;">
       {{swipe.type}}
+      </div>
+    }
+
+    @if(pinch$ | async; as pinch) {
+      <div
+      class="touch-indicator"
+      [style.left.px]="pinch.center[0]"
+      [style.top.px]="pinch.center[1]"
+      style="background-color: chartreuse; position: absolute;">
+        Pinch: {{pinch.scale.toFixed(2)}}
       </div>
     }
   </div>

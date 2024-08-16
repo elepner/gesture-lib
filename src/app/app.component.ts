@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { toObservable } from '@angular/core/rxjs-interop';
 import { filter, map, merge, Observable, of, share, switchMap, take, timer } from 'rxjs';
 import { isNotNull } from './utils';
-import { fromHtmlElementEvent, getCoordinates, swipe, toTouchState, touchMove } from './gestures';
+import { doubleTap, fromHtmlElementEvent, getCoordinates, pinch, swipe, tapScreen, toTouchState } from './gestures';
 import { center } from './math';
 import { TouchRecord, TouchState } from './models';
 @Component({
@@ -26,7 +26,7 @@ export class AppComponent {
 
   readonly colors = ['red', 'green', 'blue'] as const;
 
-  toches$ = this.touchState$.pipe(map((state) => {
+  touches$ = this.touchState$.pipe(map((state) => {
     return Object.entries(state.touches).map(([id, state], index) => {
       return {
         id,
@@ -37,8 +37,21 @@ export class AppComponent {
   }))
 
   swipe$ = merge(...[1, 2, 3].map(
-    c => toView(swipe(this.touchState$, c), `Swipe ${c}`),
+    c => toView(swipe(this.touchState$, c).pipe(switchMap(x => x)), `Swipe ${c}`),
   ));
+
+  tap$ = merge(...[1, 2, 3].map(c => toView(tapScreen(this.touchState$, c), `Tap ${c}`)))
+  doubleTap$ = merge(...[1, 2, 3].map(c => toView(doubleTap(this.touchState$, c), `Double tap ${c}`)))
+
+  gestures$ = merge(this.swipe$, this.tap$, this.doubleTap$);
+
+  pinch$ = pinch(this.touchState$).pipe(
+    switchMap(x => x),
+    switchMap((val) => merge(of({
+      center: val.center,
+      scale: val.scale
+    }), timer(1500).pipe(take(1), map(() => null))))
+  )
 
   constructor() {
 
@@ -100,9 +113,8 @@ export class AppComponent {
   }
 }
 
-function toView(input: Observable<Observable<TouchRecord>>, id: string) {
+function toView(input: Observable<TouchRecord>, id: string) {
   return input.pipe(
-    switchMap((val) => val),
     switchMap(val => {
       return merge(of({
         center: center(getCoordinates(val)),
