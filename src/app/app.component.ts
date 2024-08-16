@@ -1,15 +1,16 @@
 import { ChangeDetectionStrategy, Component, ElementRef, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { toObservable } from '@angular/core/rxjs-interop';
-import { filter, map, merge, share, switchMap } from 'rxjs';
+import { filter, map, merge, of, share, switchMap, take, timer } from 'rxjs';
 import { isNotNull } from './utils';
-import { fromHtmlElementEvent, swipe, toTouchState, touchMove } from './gestures';
+import { fromHtmlElementEvent, getCoordinates, swipe, toTouchState, touchMove } from './gestures';
+import { center } from './math';
 @Component({
   selector: 'app-root',
   standalone: true,
   imports: [CommonModule],
   templateUrl: './app.component.html',
-  styles: [],
+  styleUrls: ['./app.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AppComponent {
@@ -33,6 +34,18 @@ export class AppComponent {
       }
     })
   }))
+
+  swipe$ = merge(...[1, 2, 3].map(
+    c => swipe(this.touchState$, c).pipe(
+      switchMap((val) => val),
+      switchMap(val => {
+        return merge(of({
+          center: center(getCoordinates(val)),
+          type: 'Swipe'
+        } as const), timer(1500).pipe(take(1), map(() => null)))
+      })
+    ),
+  ))
 
   constructor() {
     // toObservable(this.targetEl).pipe(
@@ -82,8 +95,16 @@ export class AppComponent {
 
 
     merge(...[1, 2, 3].map(
-      c => swipe(this.touchState$, c).pipe(switchMap((val) => (val))))
-    ).subscribe(obj => {
+      c => swipe(this.touchState$, c).pipe(
+        switchMap((val) => val),
+        switchMap(val => {
+          return merge(of({
+            center: center(getCoordinates(val)),
+            type: 'Swipe'
+          } as const), timer(750).pipe(take(1), map(() => null)))
+        })
+      ),
+    )).subscribe(obj => {
       console.log('Swipe', obj);
     });;
 
