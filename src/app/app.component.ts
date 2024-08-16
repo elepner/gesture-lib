@@ -1,10 +1,11 @@
 import { ChangeDetectionStrategy, Component, ElementRef, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { toObservable } from '@angular/core/rxjs-interop';
-import { filter, map, merge, of, share, switchMap, take, timer } from 'rxjs';
+import { filter, map, merge, Observable, of, share, switchMap, take, timer } from 'rxjs';
 import { isNotNull } from './utils';
 import { fromHtmlElementEvent, getCoordinates, swipe, toTouchState, touchMove } from './gestures';
 import { center } from './math';
+import { TouchRecord, TouchState } from './models';
 @Component({
   selector: 'app-root',
   standalone: true,
@@ -36,18 +37,12 @@ export class AppComponent {
   }))
 
   swipe$ = merge(...[1, 2, 3].map(
-    c => swipe(this.touchState$, c).pipe(
-      switchMap((val) => val),
-      switchMap(val => {
-        return merge(of({
-          center: center(getCoordinates(val)),
-          type: 'Swipe'
-        } as const), timer(1500).pipe(take(1), map(() => null)))
-      })
-    ),
-  ))
+    c => toView(swipe(this.touchState$, c), `Swipe ${c}`),
+  ));
 
   constructor() {
+
+
     // toObservable(this.targetEl).pipe(
     //   filter(isNotNull),
     //   switchMap((el) => {
@@ -92,22 +87,6 @@ export class AppComponent {
      });
   */
 
-
-
-    merge(...[1, 2, 3].map(
-      c => swipe(this.touchState$, c).pipe(
-        switchMap((val) => val),
-        switchMap(val => {
-          return merge(of({
-            center: center(getCoordinates(val)),
-            type: 'Swipe'
-          } as const), timer(750).pipe(take(1), map(() => null)))
-        })
-      ),
-    )).subscribe(obj => {
-      console.log('Swipe', obj);
-    });;
-
     toObservable(this.targetEl).pipe(
       filter(isNotNull),
       switchMap((ref) => fromHtmlElementEvent(ref.nativeElement, 'touchmove'))
@@ -119,4 +98,16 @@ export class AppComponent {
   disableContextMenu(event: Event) {
     event.preventDefault();
   }
+}
+
+function toView(input: Observable<Observable<TouchRecord>>, id: string) {
+  return input.pipe(
+    switchMap((val) => val),
+    switchMap(val => {
+      return merge(of({
+        center: center(getCoordinates(val)),
+        type: id
+      }), timer(1500).pipe(take(1), map(() => null)))
+    })
+  )
 }
