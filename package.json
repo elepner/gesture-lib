@@ -5,6 +5,7 @@
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
+    "build:ghpages": "ng build --base-href=/gesture-lib/",
     "watch": "ng build --watch --configuration development",
     "start-mobile": "ng serve --disable-host-check",
     "ngrok": "ngrok http 4200"
