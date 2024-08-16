@@ -54,52 +54,6 @@ export class AppComponent {
   )
 
   constructor() {
-
-
-    // toObservable(this.targetEl).pipe(
-    //   filter(isNotNull),
-    //   switchMap((el) => {
-    //     const obs$ = touchEvents.map((evtType) => toTouchObservable(el.nativeElement, evtType).pipe((
-    //       map((event) => {
-    //         return [evtType, event] satisfies [TouchEventType, TouchEventData]
-    //       }))));
-    //     return merge(...obs$)
-    //   })
-    // ).subscribe(obj => {
-    //   console.log('touch stuff', obj);
-    // });
-
-    // this.touchState$.subscribe(obj => {
-    //   console.log('Touch state', obj);
-    // });
-    /* 
-        merge(...[1, 2, 3].map(count => tapScreen(this.touchState$, count).pipe(
-          map((el) => ({
-            count,
-            event: el
-          }))
-        ))).subscribe(obj => {
-          console.log(`Detected tap with ${obj.count} fingers`, obj.event);
-        });
-     */
-    /*  merge(...[1, 2, 3].map(count => touchMove(this.touchState$, count).pipe(
-       switchMap(x => x.move$.pipe(
-         materialize(),
-         map((notification) => {
-           if (notification.kind === 'N') {
-             return [`Moving with ${count} fingers`, getCoordinates(notification.value)];
-           } else {
-             return [`Finished moving ${count} fingers`];
-           }
-         })
-       ))
- 
-     ))).subscribe(obj => {
-       console.log('Waiting for move', obj)
-       // console.log(`Detected tap with ${obj.count} fingers`, obj.event);
-     });
-  */
-
     toObservable(this.targetEl).pipe(
       filter(isNotNull),
       switchMap((ref) => fromHtmlElementEvent(ref.nativeElement, 'touchmove'))
