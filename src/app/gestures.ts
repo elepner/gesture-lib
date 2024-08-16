@@ -110,7 +110,7 @@ export function tapScreen(touchState$: Observable<TouchState>, fingerCount: numb
         [
           of(tapEvent).pipe(delay(DOUBLE_TAP_TIME_MS)),
           touchState$.pipe(
-            switchMap(x => interval(10)),
+            exhaustMap(() => interval(100).pipe(startWith(0))),
             take(2),
             map(() => null),
           )
@@ -170,7 +170,7 @@ export function pinch(touchState$: Observable<TouchState>) {
     })
   );
 }
-const DOUBLE_TAP_TIME_MS = 400;
+const DOUBLE_TAP_TIME_MS = 750;
 export function doubleTap(touchState$: Observable<TouchState>, fingerCount: number) {
   return tapInternal(touchState$, fingerCount).pipe(
     exhaustMap((start) => {
