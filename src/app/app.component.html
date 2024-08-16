@@ -29,5 +29,9 @@
     }
   </div>
 
-  <div>{{swipe$ | async | json}}</div>
+  <div>
+    @for (kv of (touchState$ | async)?.touches| keyvalue; track kv.key) {
+      <div>{{kv.key}}: {{kv.value.position | json}}:{{kv.value.timestamp.toFixed(0)}}</div>
+    }
+  </div>
 </div>
