@@ -1,4 +1,4 @@
-import { exhaustMap, filter, fromEvent, map, merge, Observable, pairwise, scan, skipWhile, startWith, switchMap, take, takeLast, takeUntil, takeWhile, timer } from 'rxjs';
+import { bufferTime, exhaustMap, filter, fromEvent, map, merge, Observable, pairwise, scan, skipWhile, startWith, switchMap, take, takeLast, takeUntil, takeWhile, timer } from 'rxjs';
 import { center, magSq, sub, Vector } from './math';
 import { TouchEventType, TouchEventData, touchEvents, TouchState, TouchRecord } from './models';
 import { arrMap, isNotNull } from './utils';
@@ -79,7 +79,7 @@ export function toTouchState(target: HTMLElement) {
   )
 }
 
-const TAP_TOLERANCE_PX = 30;
+const TAP_TOLERANCE_PX = 15;
 const TAP_TIME_MS = 750;
 export function tapScreen(touchState$: Observable<TouchState>, fingerCount: number) {
   return waitForPress(touchState$.pipe(map(x => x.touches)), fingerCount).pipe(
@@ -120,6 +120,50 @@ export function touchMove(touchState$: Observable<TouchState>, fingerCount: numb
 }
 
 const SWIPE_MIN_TRAVEL_DISTANCE_PX = 200;
+
+export function pan(touchState$: Observable<TouchState>, fingerCount: number) {
+  return touchMove(touchState$, fingerCount).pipe(
+    map((start) => {
+      return start.move$.pipe(
+        map((touches) => {
+          return center(getCoordinates(touches));
+        })
+      )
+    })
+  );
+}
+
+export function pinch(touchState$: Observable<TouchState>) {
+  return touchMove(touchState$, 2).pipe(
+    map((start) => {
+      const startDistance = magSq(sub(...getCoordinates(start.startState.gestureStart) as [Vector, Vector]));
+
+      return start.move$.pipe(
+        map((touches) => {
+          return {
+            center: center(getCoordinates(touches)),
+            scale: Math.sqrt(
+              magSq(sub(...getCoordinates(touches) as [Vector, Vector])) / startDistance
+            )
+          }
+        })
+      )
+    })
+  );
+}
+const DOUBLE_TAP_TIME_MS = 750;
+export function doubleTap(touchState$: Observable<TouchState>, fingerCount: number) {
+  return tapScreen(touchState$, fingerCount).pipe(
+    exhaustMap((start) => {
+      return tapScreen(touchState$, fingerCount).pipe(
+        bufferTime(DOUBLE_TAP_TIME_MS),
+        take(1),
+        filter(x => x.length === 1),
+        map(() => start)
+      )
+    })
+  )
+}
 
 export function swipe(touchState$: Observable<TouchState>, fingerCount: number) {
 

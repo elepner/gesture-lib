@@ -1,10 +1,9 @@
 import { ChangeDetectionStrategy, Component, ElementRef, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { toObservable } from '@angular/core/rxjs-interop';
-import { filter, map, materialize, merge, share, switchMap, tap } from 'rxjs';
+import { filter, map, merge, share, switchMap } from 'rxjs';
 import { isNotNull } from './utils';
-import { fromHtmlElementEvent, getCoordinates, swipe, tapScreen, toTouchObservable, toTouchState, touchMove, waitForPress } from './gestures';
-import { TouchEventData, touchEvents, TouchEventType } from './models';
+import { fromHtmlElementEvent, swipe, toTouchState, touchMove } from './gestures';
 @Component({
   selector: 'app-root',
   standalone: true,
